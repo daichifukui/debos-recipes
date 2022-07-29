@@ -1,0 +1,60 @@
+{{- $image := or .image "debian-qemu-riscv64.img" -}}
+{{- $mntpnt := or .mntpnt "defaults,noatime,sync" -}}
+
+architecture: riscv64
+
+actions:
+  - action: debootstrap
+    suite: "unstable"
+    components:
+      - main
+    mirror: http://deb.debian.org/debian-ports
+    variant: minbase
+    keyring-file: /recipes/key/usr/share/keyrings/debian-ports-archive-keyring.gpg
+
+  - action: apt
+    packages: [ sudo, vim ,nano ,openssh-server, adduser, systemd-sysv, gzip, linux-image-riscv64 ]
+
+  - action: run
+    chroot: true
+    command: echo buster > /etc/hostname
+
+  - action: run
+    chroot: true
+    script: scripts/setup-user.sh
+
+#  - action: apt
+#    recommends: false
+#    packages:
+#      - linux-image-amd64
+#      - grub-pc
+#      - bpftrace
+#      - linux-headers-amd64
+#      - bpfcc-tools
+#      - linux-libc-dev # unnecessary?
+
+  - action: image-partition
+    imagename: {{ $image }}
+    imagesize: 8GB
+    partitiontype: gpt
+    mountpoints:
+      - mountpoint: /
+        partition: root
+        options: [ {{ $mntpnt }} ]
+    partitions:
+      - name: root
+        fs: ext4
+        start: 0%
+        end: 100%
+        flags: [ boot ]
+
+  - action: filesystem-deploy
+    description: Deploying filesystem onto image
+
+#  - action: run
+#    postprocess: true
+#    command: bmaptool create {{ $image }} > {{ $image }}.bmap
+
+#  - action: run
+#    postprocess: true
+#    command: gzip -f {{ $image }}
